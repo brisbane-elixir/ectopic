@@ -87,6 +87,74 @@ Indexes:
 ```
 Also take a look at `web/models/user.ex` and `priv/repo/migrations/20160426054138_create_user.exs` to see the model and migration generated.
 
+Lets fire up the app and take a look at what it's generated for us in a browser.
+```
+iex -S mix phoenix.server
+```
+
 ## Changesets
 Changesets are a key part of ecto - let's review what they're all about, and see to how to use them in the current version of ecto. Later we'll see what is
 different in 2.0.
+Changesets allow filtering, casting, validation and definition of constraints when manipulating models.
+In other words, a changeset is a data structure that controls the changes being sent to the database. Let's see an example:
+```
+  def changeset(user, params \\ :empty) do
+    user
+    |> cast(params, ~w(name email), ~w(age))
+    |> validate_format(:email, ~r/@/)
+    |> validate_inclusion(:age, 18..100)
+    |> unique_constraint(:email)
+  end
+```
+Let's play with changesets in our iex console:
+```
+alias Ectopic.User
+changeset = User.changeset(%User{}, %{})
+changeset.valid?
+changeset.errors
+```
+And a valid one:
+```
+changeset = User.changeset(%User{}, %{name: "Fred", email: "fred@skynet.com", bio: "Builds stuff", number_of_pets: 1})
+changeset.valid?
+changeset.errors
+```
+And then let's actually insert this into our DB:
+```
+alias Ectopic.Repo
+Repo.insert(changeset)
+```
+It's worth noting that you can insert models directly without using changesets:
+```
+user = %User{name: "jane", email: "jane@skynet.com", bio: "Also builds stuff", number_of_pets: 16}
+Repo.insert(user)
+```
+But this bypasses our opportunity to handle validations and errors in the flexible way changesets gives us.
+
+# Tests
+Let's checkout the user test the generator created for us, in `test/models/user_test.exs`
+They do some things like:
+```
+  test "changeset with valid attributes" do
+    changeset = User.changeset(%User{}, @valid_attrs)
+    assert changeset.valid?
+  end
+```
+These tests are aimed at being isolated to the functions User model, and don't actually insert any data into the DB.
+The generated controller tests, however, test the app from the router to the DB, and do actually insert data:
+```
+  test "creates resource and redirects when data is valid", %{conn: conn} do
+    conn = post conn, user_path(conn, :create), user: @valid_attrs
+    assert redirected_to(conn) == user_path(conn, :index)
+    assert Repo.get_by(User, @valid_attrs)
+  end
+```
+Each test starts a test transaction which is rolled back at the end of the test. This tests are run sequentially, so
+if you have a lot of tests, this would be a prime reason for them taking a long time to run.
+
+
+
+# Resources
+http://blog.plataformatec.com.br/2016/02/ecto-2-0-0-beta-0-is-out/
+http://blog.plataformatec.com.br/2015/12/ecto-v1-1-released-and-ecto-v2-0-plans/
+http://www.phoenixframework.org/docs/ecto-models
