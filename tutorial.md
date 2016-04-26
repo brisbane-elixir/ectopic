@@ -130,6 +130,18 @@ user = %User{name: "jane", email: "jane@skynet.com", bio: "Also builds stuff", n
 Repo.insert(user)
 ```
 But this bypasses our opportunity to handle validations and errors in the flexible way changesets gives us.
+If you haven't used ecto before, it's worth taking a quick look at it's query DSL:
+```
+import Ecto.Query
+query = from u in User, where: u.email == "fred@skynet.com"
+Repo.all(query)
+```
+If also supports simply piping functions together:
+```
+User |>
+where(email: "fred@skynet.com") |>
+Repo.all
+```
 
 # Tests
 Let's checkout the user test the generator created for us, in `test/models/user_test.exs`
@@ -152,7 +164,15 @@ The generated controller tests, however, test the app from the router to the DB,
 Each test starts a test transaction which is rolled back at the end of the test. This tests are run sequentially, so
 if you have a lot of tests, this would be a prime reason for them taking a long time to run.
 
+We'll see what moving to ecto 2.0 means for all the things we have looked at...
 
+# Upgrading to Ecto 2.0
+Let's upgrade!
+The first step is to update your Phoenix.Ecto dependency to 3.0.0-beta in your mix.exs.
+This dependency will effectively depend on Ecto 2.0 and integrate it with Phoenix:
+```
+{:phoenix_ecto, "~> 3.0.0-beta"}
+```
 
 # Resources
 http://blog.plataformatec.com.br/2016/02/ecto-2-0-0-beta-0-is-out/
