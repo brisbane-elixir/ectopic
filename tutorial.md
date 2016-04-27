@@ -164,6 +164,12 @@ The generated controller tests, however, test the app from the router to the DB,
 Each test starts a test transaction which is rolled back at the end of the test. This tests are run sequentially, so
 if you have a lot of tests, this would be a prime reason for them taking a long time to run.
 
+Lets run the tests just prove they all run:
+```
+mix test
+```
+
+
 We'll see what moving to ecto 2.0 means for all the things we have looked at...
 
 # Upgrading to Ecto 2.0
@@ -173,6 +179,46 @@ This dependency will effectively depend on Ecto 2.0 and integrate it with Phoeni
 ```
 {:phoenix_ecto, "~> 3.0.0-beta"}
 ```
+and update our deps:
+```
+mix deps.get
+```
+If we run our tests now, we'll see some failures. We have some code changes to do.
+First, in `test/test_helper.exs` replace
+```
+Ecto.Adapters.SQL.begin_test_transaction(Ectopic.Repo)
+```
+with
+```
+Ecto.Adapters.SQL.Sandbox.mode(Ectopic.Repo, :manual)
+```
+In each `test/support/*_case.ex` file replace
+```
+unless tags[:async] do
+  Ecto.Adapters.SQL.restart_test_transaction(Demo.Repo, [])
+end
+```
+with
+```
+:ok = Ecto.Adapters.SQL.Sandbox.checkout(Demo.Repo)
+```
+Thanks to new `SQL.Sandbox` in ecto 2.0, database tests no longer need to guard against
+the `async` tag.
+One last thing - one view helper in Phoenix uses a function in Ecto to render error messages which has changed. In `web/views/error_helpers.ex`
+replace the two `def translate_error(...) do` functions with just one:
+```
+  def translate_error({msg, opts}) do
+    if count = opts[:count] do
+      Gettext.dngettext(Ectopic.Gettext, "errors", msg, msg, count, opts)
+    else
+      Gettext.dgettext(Ectopic.Gettext, "errors", msg, opts)
+    end
+  end
+```
+And that's it! Upgrade complete!
+Let's run our tests to ensure they pass with `mix test`.
+
+Ok, so there are a few warnings - but those can be easily fixed.
 
 # Resources
 http://blog.plataformatec.com.br/2016/02/ecto-2-0-0-beta-0-is-out/

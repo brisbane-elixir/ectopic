@@ -26,10 +26,10 @@ defmodule Ectopic.ErrorHelpers do
     #
     #     dngettext "errors", "1 file", "%{count} files", count
     #
-    Gettext.dngettext(Ectopic.Gettext, "errors", msg, msg, opts[:count], opts)
-  end
-
-  def translate_error(msg) do
-    Gettext.dgettext(Ectopic.Gettext, "errors", msg)
+    if count = opts[:count] do
+      Gettext.dngettext(Ectopic.Gettext, "errors", msg, msg, count, opts)
+    else
+      Gettext.dgettext(Ectopic.Gettext, "errors", msg, opts)
+    end
   end
 end
