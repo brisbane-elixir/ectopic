@@ -118,6 +118,8 @@ And a valid one:
 changeset = User.changeset(%User{}, %{name: "Fred", email: "fred@skynet.com", bio: "Builds stuff", number_of_pets: 1})
 changeset.valid?
 changeset.errors
+changeset.model
+changeset.changes
 ```
 And then let's actually insert this into our DB:
 ```
@@ -218,9 +220,64 @@ replace the two `def translate_error(...) do` functions with just one:
 And that's it! Upgrade complete!
 Let's run our tests to ensure they pass with `mix test`.
 
-Ok, so there are a few warnings - but those can be easily fixed.
+Ok, so there are a few warnings - but those can be easily fixed. It's not possible to tell any speed improvements with
+such a small number of tests, it would be interesting to compare on a project with many DB tests.
+
+Let's try some new ecto 2.0 features!
+
+## Revamped Changesets
+changeset.model has been renamed to changeset.data (we no longer have "models" in Ecto)
+
+Models were 'removed' in ecto 1.1 - why is this? It's really just a naming concern to make it more clear
+what they really are. In OO languages, you would say a model can be instantiated and it would have methods
+that contain business logic. However, the data that comes from the database in Ecto is just data. It is an Elixir
+struct. It is not an Ecto model.
+
+A model, a controller or a view (from the MVC pattern) are just group of functions that share similar responsibilities.
+They are just guidelines on how to group code towards a common purpose. Basically, Ecto.Model has been renamed to Ecto.Schema
+and some functions moved around.
+
+Passing required and optional fields to `cast/4` is deprecated in favor of `cast/3` and `validate_required/3`. We can update our
+User model like this:
+```
+  @required_fields ~w(name email bio number_of_pets)a
+  @optional_fields ~w()a
+
+  @doc """
+  ...
+  """
+  def changeset(model, params \\ :invalid) do
+    model
+    |> cast(params, @required_fields ++ @optional_fields)
+    |> validate_required(@required_fields)
+  end
+```
+Note the `a` at the end of the `~w` lists - this converts all items to atoms.
+
+## Subqueries
+Ecto v2.0 introduces Ecto.Query.subquery/1 that will convert any query into a subquery to be used either as part of a from or a join.
+If we wanted the average number of pets, we could write:
+```
+query = from u in User, select: avg(u.number_of_pets)
+Repo.all query
+```
+However, if we need the average of the most recent x users, we need subqueries:
+```
+subquery = from u in User, select: [:number_of_pets], order_by: [desc: :inserted_at], limit: 5
+query = from p in subquery(subquery), select: avg(p.number_of_pets)
+Repo.all query
+```
+From here, let's play with the following new features listed in the changelog:
+## Concurrent transactional tests
+## Insert all
+## Many to many
+## Improved association support
 
 # Resources
+https://github.com/elixir-lang/ecto/blob/v2.0.0-beta.0/CHANGELOG.md
+
 http://blog.plataformatec.com.br/2016/02/ecto-2-0-0-beta-0-is-out/
+
 http://blog.plataformatec.com.br/2015/12/ecto-v1-1-released-and-ecto-v2-0-plans/
+
 http://www.phoenixframework.org/docs/ecto-models
