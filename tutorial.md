@@ -201,7 +201,7 @@ Ecto.Adapters.SQL.Sandbox.mode(Ectopic.Repo, :manual)
 In each `test/support/*_case.ex` file replace
 ```
 unless tags[:async] do
-  Ecto.Adapters.SQL.restart_test_transaction(Demo.Repo, [])
+  Ecto.Adapters.SQL.restart_test_transaction(Ectopic.Repo, [])
 end
 ```
 with
