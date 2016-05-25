@@ -5,10 +5,14 @@ Ecto 2.0 is about to be released, and brings some major changes and advancements
 
 These include:
 - Concurrent transactional tests
+- Deprecation of `Ecto.Model`
+- Schemaless queries
+- `Ecto.multi` for grouping operations within a transaction
+- New insert_all, update_all and delete_all functions
 - Many to many associations
-- Ecto Models are being removed
 - Revamped changesets
 - Subqueries
+- Migrated to DBConnection for performance improvements
 - And more!
 
 Let's start exploring!
@@ -225,7 +229,39 @@ such a small number of tests, it would be interesting to compare on a project wi
 
 Let's try some new ecto 2.0 features!
 
-## Revamped Changesets
+## Schemaless Queries
+If you are writing a reporting view, for example, it might be counter production to think how your existing
+application schemas relate to the report being generated. It may be simpler to build a query that returns the
+data needed, without taking schemas into account.
+```
+  MyApp.Repo.all(
+    from u in "users",
+      join: a in "activities",
+      on: a.user_id == u.id,
+      where: a.start_at > type(^start_at, Ecto.DateTime) and
+             a.end_at < type(^end_at, Ecto.DateTime),
+      group_by: a.user_id,
+      select: %{user_id: a.user_id, interval: a.start_at - a.end_at, count: count(u.id)}
+  )
+```
+Notice the use of `type\2` to give us the same type casting guarantees that a schema give us.
+
+The new `insert_all`, `update_all` and `delete_all` functions further allow us to manipulate
+our data without needing a schema in between at all:
+```
+# Insert data into posts and return its ID
+[%{id: id}] =
+  MyApp.Repo.insert_all "posts", [[title: "hello"]], returning: [:id]
+
+# Use the ID to trigger updates
+post = from p in "posts", where: p.id == ^id
+{1, _} = MyApp.Repo.update_all post, set: [title: "new title"]
+
+# As well as for deletes
+{1, _} = MyApp.Repo.delete_all post
+```
+
+## `Ecto.Model` Deprecated
 changeset.model has been renamed to changeset.data (we no longer have "models" in Ecto)
 
 Models were 'removed' in ecto 1.1 - why is this? It's really just a naming concern to make it more clear
@@ -237,6 +273,45 @@ A model, a controller or a view (from the MVC pattern) are just group of functio
 They are just guidelines on how to group code towards a common purpose. Basically, Ecto.Model has been renamed to Ecto.Schema
 and some functions moved around.
 
+## Schemas without the Database
+Ecto schemas are used to map any data source into an Elixir struct. It is a common misconception to think Ecto schemas map only to your database tables.
+
+For instance, when you write a web application using Phoenix and you use Ecto to receive external changes and apply such changes to your database, we are actually mapping the schema to two different sources:
+```
+Database <-> Ecto schema <-> Forms / API
+```
+We can however, use schemas without the database. For example, we want to validate data coming in via an API and
+use structs for better type guarantees. We can use a schema like this:
+```
+defmodule Registration do
+  use Ecto.Schema
+
+  embedded_schema do
+    field :first_name
+    field :last_name
+    field :email
+  end
+end
+
+fields = [:first_name, :last_name, :email]
+
+changeset =
+  %Registration{}
+  |> Ecto.Changeset.cast(params["sign_up"], fields)
+  |> validate_required(...)
+  |> validate_length(...)
+
+
+if changeset.valid? do
+  # Get the modified registration struct out of the changeset
+  registration = Ecto.Changeset.apply_changes(changeset)
+  ...
+else
+  ...
+end
+```
+
+## Revamped Changesets
 Passing required and optional fields to `cast/4` is deprecated in favor of `cast/3` and `validate_required/3`. We can update our
 User model like this:
 ```
