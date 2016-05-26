@@ -351,8 +351,14 @@ From here, let's play with the following new features listed in the changelog:
 # Resources
 https://github.com/elixir-lang/ecto/blob/v2.0.0-beta.0/CHANGELOG.md
 
+http://blog.plataformatec.com.br/2016/05/ectos-insert_all-and-schemaless-queries/
+
 http://blog.plataformatec.com.br/2016/02/ecto-2-0-0-beta-0-is-out/
 
 http://blog.plataformatec.com.br/2015/12/ecto-v1-1-released-and-ecto-v2-0-plans/
+
+http://pages.plataformatec.com.br/ebook-whats-new-in-ecto-2-0
+
+https://github.com/elixir-lang/ecto/issues/1114
 
 http://www.phoenixframework.org/docs/ecto-models
